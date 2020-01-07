@@ -22,7 +22,7 @@ A small project created to bring many informative layers together in a single ma
   - https://developers.arcgis.com/javascript/
 
 ## 6 Digit Coord
-This was developed to easily go to coordinates used by fire services and heard over scanners ( e.g. https://www.broadcastify.com/listen/feed/31709 ), these are based on MGRS, the app should work out the MGRS zone based on the users current location and append the entered 6 or 8 digit coordinates to go to the area.
+This was developed to easily go to coordinates used by fire services and heard over scanners ( e.g. https://www.broadcastify.com/listen/feed/31709 ), these are based on MGRS, the app should work out the MGRS zone based on the users current location and append the entered 6 or 8 digit coordinates to go to the area. See https://nswrfs.atlassian.net/wiki/spaces/TECHNICAL/pages/44666448/Reading+a+Map
 
 ## Data
  - RFS Major Incidents RSS Feed - http://www.rfs.nsw.gov.au/feeds/majorIncidents.xml
