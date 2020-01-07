@@ -64,8 +64,14 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
 
     // global.view.popup.autoOpenEnabled = true;
 
+    jQuery("#layersDiv").on("click", {}, function(event)
+    {
+        jQuery("#layersDivInner").slideToggle();
+    })
+
     var layerList = new LayerList({
         view: global.view,
+        container: "layersDivInner",
         listItemCreatedFunction: function (event)
         {
             var item = event.item;
@@ -102,9 +108,9 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         }
     });
 
-    global.view.ui.add(layerList, {
-        position: "top-right"
-    });
+    // global.view.ui.add(layerList, {
+    //     position: "top-right"
+    // });
 
     layerList.on("trigger-action", function (event)
     {
