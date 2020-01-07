@@ -4,8 +4,8 @@ var global = {
     map: null
 }
 
-require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView", "esri/layers/BaseElevationLayer","esri/layers/ElevationLayer", "esri/layers/FeatureLayer", "esri/layers/WMSLayer", "esri/layers/GraphicsLayer", "esri/Graphic", "esri/geometry/Point", "esri/renderers/smartMapping/creators/relationship", "esri/widgets/LayerList", "esri/widgets/BasemapToggle", "esri/widgets/Popup", "esri/geometry/SpatialReference", "esri/geometry/coordinateFormatter", "esri/geometry/projection"],
- function (Map, WebMap, SceneView, MapView, BaseElevationLayer, ElevationLayer, FeatureLayer, WMSLayer, GraphicsLayer, Graphic, Point, relationshipRendererCreator, LayerList, BasemapToggle, Popup, SpatialReference, coordinateFormatter, projection)
+require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView", "esri/layers/BaseElevationLayer","esri/layers/ElevationLayer", "esri/layers/FeatureLayer", "esri/layers/GeoRSSLayer", "esri/layers/WMSLayer", "esri/layers/GraphicsLayer", "esri/Graphic", "esri/geometry/Point", "esri/renderers/smartMapping/creators/relationship", "esri/widgets/LayerList", "esri/widgets/BasemapToggle", "esri/widgets/Popup", "esri/geometry/SpatialReference", "esri/geometry/coordinateFormatter", "esri/geometry/projection", "esri/config"],
+ function (Map, WebMap, SceneView, MapView, BaseElevationLayer, ElevationLayer, FeatureLayer, GeoRSSLayer, WMSLayer, GraphicsLayer, Graphic, Point, relationshipRendererCreator, LayerList, BasemapToggle, Popup, SpatialReference, coordinateFormatter, projection, esriConfig)
 {
     //  var ExaggeratedElevationLayer = BaseElevationLayer.createSubclass({
     //      properties: {
@@ -412,6 +412,17 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         //         console.log("");
         //     })
         // });
+        esriConfig.geoRSSServiceUrl = "https://utility.arcgis.com/sharing/rss";
+
+        var rssLayer = new GeoRSSLayer({
+            title: "RFS Major Incidents RSS Feed",
+            url: "http://www.rfs.nsw.gov.au/feeds/majorIncidents.xml",
+        });
+        rssLayer.when( function ( rssWhen )
+        {
+            console.log(rssWhen);
+        });
+        global.map.add(rssLayer);
     });
 
     jQuery("#sixButton").on("click", {}, function(event)
