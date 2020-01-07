@@ -14,3 +14,9 @@ A small project created to bring many informative layers together in a single ma
 - Hotspot Data
 - Weather Data
 - Traffic Data
+
+## Technologies
+- jQuery 1.12.4
+  - https://jquery.com/
+- ArcGIS js API 4.14
+  - https://developers.arcgis.com/javascript/
