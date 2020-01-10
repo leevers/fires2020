@@ -817,7 +817,7 @@ require(["esri/Map", "esri/Basemap", "esri/WebMap",
             var minZoom = map.getMinZoom();
 
             map.eachLayer(function(layer){
-                console.log(layer);
+                // console.log(layer);
 
                 if(layer.options.className == "basemap-layer")
                 {
@@ -834,6 +834,7 @@ require(["esri/Map", "esri/Basemap", "esri/WebMap",
 
             map.setMaxZoom(22);
             map.setMinZoom(3);
+            map.setView([global.view.center.latitude,global.view.center.longitude],global.view.zoom, {animate: false, duration: 0});
 
             var windyDiv = jQuery("#windy");
             var esriOverlayDiv = jQuery(".esri-overlay-surface");
