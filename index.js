@@ -150,6 +150,7 @@ require(["esri/Map", "esri/Basemap", "esri/WebMap",
       // expandTooltip: "Expand LayerList", // optional, defaults to "Expand" for English locale
       view: global.view,
       content: layerList.domNode,
+      label: "Layers",
       container: "layersDiv"
     });
 
