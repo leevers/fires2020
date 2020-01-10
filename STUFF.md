@@ -60,3 +60,6 @@ Coordinates
 
 
 https://www.arcgis.com/home/webmap/viewer.html?webmap=2168b5162d61432c8b3499818a2d60df
+
+
+<iframe width="650" height="450" src="https://embed.windy.com/embed2.html?lat=-34.639&lon=150.221&zoom=11&level=surface&overlay=wind&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&detailLat=-34.639&detailLon=150.221&metricWind=default&metricTemp=default&radarRange=-1" frameborder="0"></iframe>

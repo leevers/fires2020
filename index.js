@@ -4,9 +4,25 @@ var global = {
     map: null
 }
 
-require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView", "esri/layers/BaseElevationLayer","esri/layers/ElevationLayer", "esri/layers/FeatureLayer", "esri/layers/GeoRSSLayer", "esri/layers/WMSLayer", "esri/layers/GraphicsLayer", "esri/Graphic", "esri/geometry/Point", "esri/renderers/smartMapping/creators/relationship", "esri/widgets/LayerList", "esri/widgets/BasemapToggle", "esri/widgets/Popup", "esri/geometry/SpatialReference", "esri/geometry/coordinateFormatter", "esri/geometry/projection", "esri/config"],
- function (Map, WebMap, SceneView, MapView, BaseElevationLayer, ElevationLayer, FeatureLayer, GeoRSSLayer, WMSLayer, GraphicsLayer, Graphic, Point, relationshipRendererCreator, LayerList, BasemapToggle, Popup, SpatialReference, coordinateFormatter, projection, esriConfig)
+require(["esri/Map", "esri/Basemap", "esri/WebMap",
+    "esri/views/SceneView", "esri/views/MapView",
+    "esri/widgets/Search", "esri/widgets/Expand", "esri/widgets/LayerList", "esri/widgets/BasemapToggle", "esri/widgets/Popup",
+    "esri/layers/GeoJSONLayer", "esri/layers/KMLLayer", "esri/layers/MapImageLayer", "esri/layers/BaseElevationLayer","esri/layers/ElevationLayer", 
+    "esri/layers/FeatureLayer", "esri/layers/GeoRSSLayer", "esri/layers/WMSLayer", "esri/layers/GraphicsLayer", "esri/layers/GroupLayer",
+    "esri/Graphic", "esri/geometry/Point", "esri/geometry/Extent", "esri/renderers/smartMapping/creators/relationship",
+    "esri/geometry/SpatialReference", "esri/geometry/coordinateFormatter", "esri/geometry/projection", "esri/request", "esri/core/watchUtils", "esri/config",
+    "./plugins/RasterLayer.js"],
+ function (Map, Basemap, WebMap,
+    SceneView, MapView,
+    Search, Expand, LayerList, BasemapToggle, Popup,
+    GeoJSONLayer, KMLLayer, MapImageLayer, BaseElevationLayer, ElevationLayer, 
+    FeatureLayer, GeoRSSLayer, WMSLayer, GraphicsLayer, GroupLayer,
+    Graphic, Point, Extent, relationshipRendererCreator,
+    SpatialReference, coordinateFormatter, projection, esriRequest, watchUtils, esriConfig,
+    RasterLayer)
 {
+    // esriConfig.request.proxyUrl = "http://localhost:8888/viewer/proxy/proxy.ashx?";
+
     //  var ExaggeratedElevationLayer = BaseElevationLayer.createSubclass({
     //      properties: {
     //          // exaggerates the actual elevations by 100x
@@ -41,12 +57,26 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
     //      }
     //  });
 
+    // var basemapLayer1 = new WMSLayer({
+    //     title: "neowms",
+    //     url: "http://neowms.sci.gsfc.nasa.gov/wms/wms"
+    // });
+    // var basemapLayer2 = new WMSLayer({
+    //     title: "meteeye",
+    //     url: "http://wvs1.bom.gov.au/mapcache/meteye"
+    // });
+    // var customBasemap = new Basemap({
+    //     baseLayers: [basemapLayer1, basemapLayer2]
+    // });
+
     global.map = new Map({
-        basemap: "hybrid",
+        // basemap: customBasemap,
+        basemap: "topo-vector",
         // ground: "world-elevation"
         // ground: {
         //     layers: [new ExaggeratedElevationLayer()]
         // }
+        // spatialReference: SpatialReference.WGS84
     });
 
     // global.map = new WebMap({
@@ -58,26 +88,22 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
     global.view = new MapView({
         container: "viewDiv",
         map: global.map,
-        zoom: 11,
-        center: [150.5, -34.5] // longitude, latitude
+        zoom: 12,
+        center: [150.5, -34.5], // longitude, latitude
+        // spatialReference: SpatialReference.WGS84
     });
 
     // global.view.popup.autoOpenEnabled = true;
 
-    jQuery("#layersDiv").on("click", {}, function(event)
-    {
-        jQuery("#layersDivInner").slideToggle();
-    })
-
     var layerList = new LayerList({
         view: global.view,
-        container: "layersDivInner",
+        container: document.createElement("div"),
         listItemCreatedFunction: function (event)
         {
             var item = event.item;
             if (item.layer.type != "group")
             {
-                item.actionsSections = [
+                var actionSections = [
                     [
                         // {
                         //     title: "Layer information",
@@ -97,6 +123,17 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
                     ]
                 ];
 
+                if(item.layer.fullExtent)
+                {
+                    actionSections[0].push({
+                        title: "Go to full extent",
+                        className: "esri-icon-zoom-out-fixed",
+                        id: "full-extent"
+                    });
+                }
+
+                item.actionsSections = actionSections;
+
                 if (item.layer.legendEnabled)
                 {
                     item.panel = {
@@ -106,6 +143,14 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
                 }
             }
         }
+    });
+    
+    layerListExpand = new Expand({
+      expandIconClass: "esri-icon-layer-list",  // see https://developers.arcgis.com/javascript/latest/guide/esri-icon-font/
+      // expandTooltip: "Expand LayerList", // optional, defaults to "Expand" for English locale
+      view: global.view,
+      content: layerList.domNode,
+      container: "layersDiv"
     });
 
     // global.view.ui.add(layerList, {
@@ -120,7 +165,16 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         // Capture the action id.
         var id = event.action.id;
 
-        if (id === "increase-opacity")
+        if (id === "full-extent")
+        {
+            // If the full-extent action is triggered then navigate
+            // to the full extent of the visible layer.
+            if(layer.fullExtent)
+            {
+                this.view.goTo(layer.fullExtent);
+            }
+        }
+        else if (id === "increase-opacity")
         {
             // If the increase-opacity action is triggered, then
             // increase the opacity of the GroupLayer by 0.25.
@@ -156,9 +210,16 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         // }
     });
 
+     const searchWidget = new Search({
+         view: global.view
+     });
+     global.view.ui.add(searchWidget, {
+         position: "top-right"
+     });
+
     var basemapToggle = new BasemapToggle({
         view: global.view,
-        nextBasemap: "topo-vector"
+        nextBasemap: "hybrid"
     });
 
     global.view.ui.add(basemapToggle, {
@@ -167,6 +228,62 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
 
     global.view.when(function (viewWhen)
     {
+/*
+        projection.load().then( function(loadData)
+        {
+            try
+            {
+                var rasterLayer = new RasterLayer(null, {
+                    opacity: 0.55
+                });
+                rasterLayer._setView(global.view, "windyDiv");
+                rasterLayer.title = "Windy";
+
+                global.view.on("drag", redraw);
+                global.view.on("resize", function () { });
+                // global.view.on("zoom-start", redraw);
+                // global.view.on("pan-start", redraw);
+
+                var layersRequest = esriRequest('./plugins/gfs.json', {
+                    // content: {},
+                    responseType: "json"
+                });
+                layersRequest.then(function (response)
+                {
+                    global.map.add(rasterLayer);
+                    windy = new Windy({ canvas: rasterLayer._element, data: response.data });
+                    redraw();
+                }, function (error)
+                {
+                    console.log("Error: ", error.message);
+                });
+
+                function redraw()
+                {
+                    rasterLayer._element.width = global.view.width;
+                    rasterLayer._element.height = global.view.height;
+
+                    windy.stop();
+
+                    var extent = projection.project(global.view.extent, SpatialReference.WGS84);
+                    setTimeout(function ()
+                    {
+                        windy.start(
+                            [[0, 0], [global.view.width, global.view.height]],
+                            global.view.width,
+                            global.view.height,
+                            [[extent.xmin, extent.ymin], [extent.xmax, extent.ymax]]
+                        );
+                    }, 500);
+                }
+            }
+            catch(ex)
+            {
+                console.log(ex,ex.stack);
+            }
+        });
+*/
+
         var imageryLayer = new WMSLayer({
             title: "Latest Imagery (Himawari8)",
             url: "https://sentinel.ga.gov.au/geoserver/public/wms",
@@ -194,6 +311,44 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         });
 
         global.map.add(hotspotLayer);
+
+        // var mgrsLayer = new MapImageLayer({
+        //     title: "MGRS Zones",
+        //     url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/",
+        //     listMode: "hide-children",
+        //     visible: false
+        // });
+
+        // global.map.add(mgrsLayer);
+
+        // var mgrsLayer = new KMLLayer({
+        //     title: "MGRS Zones",
+        //     url: "http://localhost:2020/data/56J/56J.kml"
+        // })
+        // global.map.add(mgrsLayer);
+
+        // var mgrsLayer = new GeoJSONLayer({
+        //     title: "MGRS Zones",
+        //     url: "data/56J/56J.geojson"
+        // })
+        // global.map.add(mgrsLayer);
+
+        var firmsLayer = new WMSLayer({
+            title: "FIRM (NASA)",
+            url: "https://firms.modaps.eosdis.nasa.gov/wms/key/d66e16633e88449045175b02a0789aa8/",
+            // listMode: "hide-children",
+            visible: false,
+            sublayers: [{
+                title: "VIIRS Fires - Past 24 Hours",
+                name: "fires_viirs_24"
+            },
+            {
+                title: "MODIS-Terra Fires - Past 24 Hours",
+                name: "fires_terra_24"
+            }]
+        });
+
+        global.map.add(firmsLayer);
 
         // https://livefeeds.arcgis.com/arcgis/rest/services/LiveFeeds/NOAA_METAR_current_wind_speed_direction/MapServer/0
         var noaaMetarLayer = new FeatureLayer({
@@ -388,18 +543,75 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
             */
         });
 
-        // var meteyeLayer = new WMSLayer({
-        //     title: "Wind (MetEye)",
-        //     // url: "http://wvs1.bom.gov.au/mapcache/meteye",
-        //     url: "http://localhost:8888/viewer/proxy/proxy.ashx?http://wvs1.bom.gov.au/mapcache/meteye",
-        //     // listMode: "hide-children",
-        //     // sublayers: [{
-        //     //     title: "Current Hotspots",
-        //     //     name: "hotspot_current"
-        //     // }]
-        // });
+        var neowmsLayer = new WMSLayer({
+            title: "neowms",
+            url: "http://neowms.sci.gsfc.nasa.gov/wms/wms",
+            sublayers: [
+                {
+                    title: "Active Fires (1 day - Terra/MODIS)",
+                    name: "MOD14A1_D_FIRE"
+                },
+                {
+                    title: "Active Fires (8 day - Terra/MODIS)",
+                    name: "MOD14A1_E_FIRE"
+                },
+                {
+                    title: "Active Fires (1 month - Terra/MODIS)",
+                    name: "MOD14A1_M_FIRE"
+                },
+            ]
+        });
+        global.map.add(neowmsLayer);
+/*
+        var meteyeLayer = new WMSLayer({
+            title: "Wind (MetEye)",
+            url: "http://wvs1.bom.gov.au/mapcache/meteye",
+            // listMode: "hide-children",
+            sublayers: [
+                // {
+                //     title: "IDY03110_windkmh",
+                //     name: "IDY03110_windkmh"
+                // },
+                // {
+                //     title: "IDY03110_wind",
+                //     name: "IDY03110_wind"
+                // },
+                // {
+                //     title: "IDY03110_windspd",
+                //     name: "IDY03110_windspd"
+                // },
+                {
+                    title: "IDZ73089",
+                    name: "IDZ73089"
+                },
+                {
+                    title: "IDZ73006",
+                    name: "IDZ73089"
+                }
+            ]
+        });
+        // http://wvs3.bom.gov.au/mapcache/meteye?TRANSPARENT=true&FORMAT=image%2Fpng&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=&layers=IDZ73006%2CIDZ73089&TIMESTEP=0&BASETIME=202001070900&ISSUETIME=20200107072626&SRS=EPSG%3A4326&BBOX=108,-36,126,-18&WIDTH=256&HEIGHT=256
+        // http://wvs3.bom.gov.au/mapcache/meteye?width=1920&height=977&bbox=16680203.817233719%2C-4133478.528764413%2C16826962.91154106%2C-4058799.552129897&format=image%2Fpng&request=GetMap&service=WMS&styles=&transparent=true&version=1.1.1&srs=EPSG%3A900913&layers=IDZ73006%2CIDZ73070_swell_dir%2CIDM00013%2CIDZ73068%2CIDZ73069%2CIDY03110_rain10m%2CIDZ73089%2CIDY03110_windspd%2CIDZ10030_coast%2CIDY03110_rh%2CIDBDM007%2CIDZ73070_swell2_small%2CIDY03110_dryblb
+        global.map.add(meteyeLayer);
+*/
 
-        // map.add(meteyeLayer);
+        // firmsLayer.when( function ( layerWhen )
+        // {
+        //     // console.log(layerWhen);
+
+        //     // layerWhen.spatialReference = SpatialReference.WGS84;
+
+        //     layerWhen.allSublayers.items.forEach( function(item)
+        //     {
+        //         if(!item.title)
+        //         {
+        //             item.title = item.name;
+        //         }
+        //         console.log(item.name);
+        //         console.log(item.title);
+        //         console.log("");
+        //     })
+        // });
 
 
         // var sentinelLayer = new WMSLayer({
@@ -421,14 +633,113 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         esriConfig.geoRSSServiceUrl = "https://utility.arcgis.com/sharing/rss";
 
         var rssLayer = new GeoRSSLayer({
-            title: "RFS Major Incidents RSS Feed",
+            title: "NSW RFS Major Incidents RSS Feed",
             url: "http://www.rfs.nsw.gov.au/feeds/majorIncidents.xml",
         });
-        rssLayer.when( function ( rssWhen )
-        {
-            console.log(rssWhen);
-        });
+        // rssLayer.when( function ( rssWhen )
+        // {
+        //     console.log(rssWhen);
+        // });
         global.map.add(rssLayer);
+    });
+
+                                   addZoneOutline("56HKH","darkblue");
+
+    addZoneOutline("56HJG","red"); addZoneOutline("56HKG","blue");      addZoneOutline("56HLG","yellow");
+
+                                   addZoneOutline("56HKF","lightblue");
+
+    
+    // addZoneOutline("55HGB","magenta");
+
+    var zoneGroupLayer = new GroupLayer({
+        title: "Zones"
+    })
+    global.map.add(zoneGroupLayer);
+
+    function addZoneOutline(zonePrefix, colour)
+    {
+        Promise.all([coordinateFormatter.load(), projection.load()]).then( function(loaded)
+        {
+            var locationSW = "0000000000";
+            var locationNW = "000999";
+            var locationNE = "9999999999";
+            var locationSE = "999000";
+
+            var swWGS84coordinate = coordinateFormatter.fromMgrs(zonePrefix + locationSW, SpatialReference.WGS84, "automatic");
+            var nwWGS84coordinate = coordinateFormatter.fromMgrs(zonePrefix + locationNW, SpatialReference.WGS84, "automatic");
+            var neWGS84coordinate = coordinateFormatter.fromMgrs(zonePrefix + locationNE, SpatialReference.WGS84, "automatic");
+            var seWGS84coordinate = coordinateFormatter.fromMgrs(zonePrefix + locationSE, SpatialReference.WGS84, "automatic");
+
+            var graphics = [];
+
+            var outlineSymbol = {
+                type: "simple-line",  // autocasts as new SimpleLineSymbol()
+                color: colour,
+                width: "2px",
+                style: "short-dot"
+            };
+
+            var outlineAttributes = {
+                "ZONE": zonePrefix,
+                "color": colour,
+            }
+
+            var outlineExtent = new Extent({
+                xmin: Math.min(swWGS84coordinate.x, nwWGS84coordinate.x),
+                ymin: Math.min(swWGS84coordinate.y, seWGS84coordinate.y),
+                xmax: Math.max(neWGS84coordinate.x, swWGS84coordinate.x),
+                ymax: Math.max(neWGS84coordinate.y, nwWGS84coordinate.y),
+                spatialReference: SpatialReference.WGS84
+            })
+
+            var outlineGraphic = new Graphic({
+                geometry: outlineExtent,
+                symbol: outlineSymbol,
+                attributes: outlineAttributes,
+                popupTemplate: {
+                    title: "{ZONE}",
+                    content: [{
+                        // Pass in the fields to display
+                        type: "fields",
+                        fieldInfos: [{
+                            fieldName: "ZONE",
+                            label: "ZONE"
+                        },{
+                            fieldName: "color",
+                            label: "Colout"
+                        }]
+                    }]
+                }
+            });
+
+            var graphicsLayer = new GraphicsLayer({
+                title: zonePrefix
+            });
+
+            graphicsLayer.fullExtent = outlineExtent.clone();
+
+            graphicsLayer.add(outlineGraphic);
+
+            zoneGroupLayer.add(graphicsLayer);
+        });
+    }
+
+    var previousZone = "56HKG";
+
+    watchUtils.watch(global.view,"stationary", function(event)
+    {
+        if(event == true)
+        {
+            Promise.all([coordinateFormatter.load(), projection.load()]).then( function(loaded)
+            {
+                var currentWGS84coordinate = projection.project(global.view.center, SpatialReference.WGS84);
+                var currentMGRScoordinate = coordinateFormatter.toMgrs(currentWGS84coordinate, "automatic", 3, false);
+                var locationPrefix = currentMGRScoordinate.substring(0,5);
+                
+                jQuery("#sixPrefix").val(locationPrefix);
+            });
+        }
     });
 
     jQuery("#sixButton").on("click", {}, function(event)
@@ -436,19 +747,24 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         var sixCoord = jQuery("#sixInput").val();
         MGRStoLatLon(sixCoord);
     });
+    
 
     function MGRStoLatLon(sixCoord)
     {
         Promise.all([coordinateFormatter.load(), projection.load()]).then( function(loaded)
         {
-            var locationPrefix = "56HKG";
+            
+            var locationPrefix = jQuery("#sixPrefix").val();
+            // var locationPrefix = "56HKG";
             try
             {
-                var currentWGS84coordinate = projection.project(global.view.center, SpatialReference.WGS84);
-                var currentMGRScoordinate = coordinateFormatter.toMgrs(currentWGS84coordinate, "automatic", 3, false);
+                // var currentWGS84coordinate = projection.project(global.view.center, SpatialReference.WGS84);
+                // var currentMGRScoordinate = coordinateFormatter.toMgrs(currentWGS84coordinate, "automatic", 3, false);
                 
-                locationPrefix = currentMGRScoordinate.substring(0,5);
-            // var locationPrefix = "56HKG676114";
+                // locationPrefix = currentMGRScoordinate.substring(0,5);
+                
+                // jQuery("#sixPrefix").val(locationPrefix);
+                // var locationPrefix = "56HKG676114";
                 var locationString = locationPrefix + sixCoord;
                 // var coord = coordinateFormatter.fromMgrs(locationString, SpatialReference.WGS84, "old-180-in-zone-56");
                 var coord = coordinateFormatter.fromMgrs(locationString, SpatialReference.WGS84, "automatic");
@@ -467,86 +783,178 @@ require(["esri/Map", "esri/WebMap", "esri/views/SceneView", "esri/views/MapView"
         // });
     }
 
-    function LiveTrafficFires()
+    initWindy();
+
+    function initWindy()
     {
-        return new Promise( function(resolve, reject)
-        {
-            fetch("http://localhost:8888/viewer/proxy/proxy.ashx?https://www.livetraffic.com/traffic/hazards/fire.json")
-            // fetch("https://server1.kproxy.com/servlet/redirect.srv/sruj/slsqrnfiumae/srst/p2/traffic/hazards/fire.json")
-            .then((response) =>
-            {
-                return response.json();
-            })
-            .then((myJson) =>
-            {
-                resolve(myJson);
-            }).catch( function(ex)
-            {
-                reject(ex);
-            });
-        })
-    }
-
-    LiveTrafficFires().then(function(json)
-    {
-        // console.log(json);
-
-        var graphics = [];
-
-        var fireSymbol = {
-            type: "web-style",
-            name: "fire-station",
-            styleName: "Esri2DPointSymbolsStyle"
+        const options = {
+            // Required: API key
+            key: 'gPvjCKJzjDMPXX8JdG7gHDQpeEeulLgv', // REPLACE WITH YOUR KEY !!!
+        
+            // Put additional console output
+            verbose: true,
+        
+            // Optional: Initial state of the map
+            // 150.5, -34.5
+            lat: -34.5,
+            lon: 150.5,
+            zoom: 12,
+            minZoom: 1,
+            maxZoom: 22
         };
 
-        for(var i =0; i < json.features.length; i++)
-        {
-            var currentFeature = json.features[i];
-            var currentGeometry = currentFeature.geometry;
-            var currentProps = currentFeature.properties;
+        
+        
+        // Initialize Windy API
+        windyInit(options, function(windyAPI) {
+            // windyAPI is ready, and contain 'map', 'store',
+            // 'pick24er' and other usefull stuff
+        
+            const { map } = windyAPI;
 
-            var attributes = {
-                "headline": currentProps.headline,
-                "adviceA": currentProps.adviceA,
-                "adviceB": currentProps.adviceB,
-            }
+            var maxZoom = map.getMaxZoom();
+            var minZoom = map.getMinZoom();
 
-            var currentGraphic = new Graphic({
-                geometry: new Point({
-                    x: currentGeometry.coordinates[0],
-                    y: currentGeometry.coordinates[1],
-                    spatialReference: SpatialReference.WGS84
-                }),
-                symbol: fireSymbol,
-                attributes: attributes,
-                popupTemplate: {
-                    title: "{headline}",
-                    content: [{
-                        // Pass in the fields to display
-                        type: "fields",
-                        fieldInfos: [{
-                            fieldName: "headline",
-                            label: "headline"
-                        }, {
-                            fieldName: "adviceA",
-                            label: "adviceA"
-                        }, {
-                            fieldName: "adviceB",
-                            label: "adviceB"
-                        }]
-                    }]
+            map.eachLayer(function(layer){
+                console.log(layer);
+
+                if(layer.options.className == "basemap-layer")
+                {
+                    layer.options.minZoom = 3;
+                    layer.options.maxZoom = 11;
+                }
+
+                if(layer.options.className == "labels-layer")
+                {
+                    layer.options.minZoom = 0;
+                    layer.options.maxZoom = 0;
                 }
             });
 
-            graphics.push(currentGraphic)
+            map.setMaxZoom(22);
+            map.setMinZoom(3);
+
+            var windyDiv = jQuery("#windy");
+            var esriOverlayDiv = jQuery(".esri-overlay-surface");
+
+            windyDiv.detach();
+            esriOverlayDiv.append(windyDiv);
+
+            watchUtils.watch(global.view,"stationary", function(event)
+            {
+                var windyDiv = jQuery("#windy");
+                if(event == false)
+                {
+                    windyDiv.hide();
+                }
+                else
+                {
+                    if(1 || global.view.zoom <= 11)
+                    {
+                        map.setView([global.view.center.latitude,global.view.center.longitude],global.view.zoom, {animate: false, duration: 0});
+                        windyDiv.show();
+                    }
+                    else
+                    {
+                        windyDiv.hide();
+                    }
+                }
+            });
+
+            // .map is instance of Leaflet map
+        
+            // L.popup()
+            //     .setLatLng([-34.5, 150.5])
+            //     .setContent('Hello World')
+            //     .openOn(map);
+        });
+    }
+
+    if(false)
+    {
+        function LiveTrafficFires()
+        {
+            return new Promise( function(resolve, reject)
+            {
+                // fetch("https://server1.kproxy.com/servlet/redirect.srv/sruj/slsqrnfiumae/srst/p2/traffic/hazards/fire.json")
+
+                // fetch("http://localhost:8888/viewer/proxy/proxy.ashx?https://www.livetraffic.com/traffic/hazards/fire.json"/*, {"mode": "no-cors"}*/)
+                fetch("https://www.livetraffic.com/traffic/hazards/fire.json")
+                .then( function (response)
+                {
+                    return response.json();
+                })
+                .then( function(myJson)
+                {
+                    resolve(myJson);
+                }).catch( function(ex)
+                {
+                    reject(ex);
+                });
+            });
         }
 
-        var graphicsLayer = new GraphicsLayer({
-            title: "Live Traffic Fires"
+        LiveTrafficFires().then(function(json)
+        {
+            // console.log(json);
+
+            var graphics = [];
+
+            var fireSymbol = {
+                type: "web-style",
+                name: "fire-station",
+                styleName: "Esri2DPointSymbolsStyle"
+            };
+
+            for(var i =0; i < json.features.length; i++)
+            {
+                var currentFeature = json.features[i];
+                var currentGeometry = currentFeature.geometry;
+                var currentProps = currentFeature.properties;
+
+                var attributes = {
+                    "headline": currentProps.headline,
+                    "adviceA": currentProps.adviceA,
+                    "adviceB": currentProps.adviceB,
+                }
+
+                var currentGraphic = new Graphic({
+                    geometry: new Point({
+                        x: currentGeometry.coordinates[0],
+                        y: currentGeometry.coordinates[1],
+                        spatialReference: SpatialReference.WGS84
+                    }),
+                    symbol: fireSymbol,
+                    attributes: attributes,
+                    popupTemplate: {
+                        title: "{headline}",
+                        content: [{
+                            // Pass in the fields to display
+                            type: "fields",
+                            fieldInfos: [{
+                                fieldName: "headline",
+                                label: "headline"
+                            }, {
+                                fieldName: "adviceA",
+                                label: "adviceA"
+                            }, {
+                                fieldName: "adviceB",
+                                label: "adviceB"
+                            }]
+                        }]
+                    }
+                });
+
+                graphics.push(currentGraphic)
+            }
+
+            var graphicsLayer = new GraphicsLayer({
+                title: "Live Traffic Fires"
+            });
+            graphicsLayer.addMany(graphics);
+
+            global.map.add(graphicsLayer);
         });
-        graphicsLayer.addMany(graphics);
-
-        global.map.add(graphicsLayer);
-    });
-
+            
+    }
 });

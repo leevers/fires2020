@@ -30,3 +30,5 @@ This was developed to easily go to coordinates used by fire services and heard o
  - Hotspot Data (Sentinel) - https://sentinel.ga.gov.au/geoserver/public/wms - hotspot_current
  - NOAA METAR Wind - https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/NOAA_METAR_current_wind_speed_direction_v1/FeatureServer/0
  - MODIS Thermal Hotspot - https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/MODIS_Thermal_v1/FeatureServer/0
+
+ 
