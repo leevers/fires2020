@@ -849,15 +849,16 @@ require(["esri/Map", "esri/Basemap", "esri/WebMap",
                 }
                 else
                 {
-                    if(1 || global.view.zoom <= 11)
+                    map.setView([global.view.center.latitude,global.view.center.longitude],global.view.zoom, {animate: false, duration: 0});
+                    if(global.view.zoom > 11)
                     {
-                        map.setView([global.view.center.latitude,global.view.center.longitude],global.view.zoom, {animate: false, duration: 0});
-                        windyDiv.show();
+                        windyDiv.css({opacity: 1});
                     }
                     else
                     {
-                        windyDiv.hide();
+                        windyDiv.css({opacity: 0.5});
                     }
+                    windyDiv.show();
                 }
             });
 
